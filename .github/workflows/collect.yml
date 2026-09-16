@@ -2,10 +2,17 @@ name: Collect match data
 
 on:
   schedule:
-    # Cada hora. GitHub Actions no garantiza el minuto exacto, puede
+    # Cada 15 minutos. GitHub Actions no garantiza el minuto exacto, puede
     # retrasarse unos minutos en horas de mucha carga.
-    - cron: "0 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch: {}
+
+concurrency:
+  # Evita que dos ejecuciones corran a la vez si una se retrasa y se
+  # solapa con la siguiente (ambas cogerían el mismo jugador de la cola).
+  # En vez de cancelar la que ya está corriendo, la nueva espera su turno.
+  group: collect-match-data
+  cancel-in-progress: false
 
 jobs:
   collect:
