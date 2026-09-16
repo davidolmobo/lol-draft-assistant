@@ -1,6 +1,6 @@
 # lol-draft-assistant
 
-App de escritorio (Electron) estilo OP.GG para League of Legends, con recomendación de pick/ban durante la fase de selección según el contexto de la partida.
+App de escritorio (Electron) para League of Legends, con recomendación de pick/ban durante la fase de selección según el contexto de la partida.
 
 ## Estructura
 
