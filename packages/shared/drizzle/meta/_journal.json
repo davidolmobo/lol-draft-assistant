@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789599848883,
+      "tag": "0000_init_lane_matchup_stats",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789600118476,
+      "tag": "0001_crawl_queue_and_processed_matches",
+      "breakpoints": true
+    }
+  ]
+}
