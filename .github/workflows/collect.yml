@@ -52,6 +52,7 @@ jobs:
         working-directory: apps/worker
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
         run: npm run status-page
 
       - uses: actions/upload-pages-artifact@v3
