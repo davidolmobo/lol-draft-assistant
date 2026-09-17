@@ -14,7 +14,7 @@ import {
   processedMatches,
   crawlQueue,
 } from "@lol-draft-assistant/shared";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, and } from "drizzle-orm";
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -115,7 +115,28 @@ const MIN_GAMES_FOR_TIER_LIST = 15;
 // jugando el mismo rol, así que esto nunca debería recortar de verdad.
 const TIER_LIST_LIMIT = 150;
 
+// El parche es un texto tipo "16.18": comparar como texto rompe en casos
+// como "16.9" vs "16.18" (ordenaría "16.9" como más reciente). Se parsean
+// los números para comparar bien.
+async function getLatestPatch(): Promise<string | null> {
+  const rows = await db
+    .selectDistinct({ patch: laneMatchupStats.patch })
+    .from(laneMatchupStats);
+  if (rows.length === 0) return null;
+
+  return rows
+    .map((r) => r.patch)
+    .sort((a, b) => {
+      const [aMajor, aMinor] = a.split(".").map(Number);
+      const [bMajor, bMinor] = b.split(".").map(Number);
+      return aMajor !== bMajor ? bMajor - aMajor : bMinor - aMinor;
+    })[0];
+}
+
 ipcMain.handle("get-tier-list", async (_event: unknown, lane: string) => {
+  const latestPatch = await getLatestPatch();
+  if (!latestPatch) return [];
+
   const rows = await db
     .select({
       championId: laneMatchupStats.championId,
@@ -123,7 +144,7 @@ ipcMain.handle("get-tier-list", async (_event: unknown, lane: string) => {
       wins: sql<number>`sum(${laneMatchupStats.wins})`,
     })
     .from(laneMatchupStats)
-    .where(eq(laneMatchupStats.lane, lane))
+    .where(and(eq(laneMatchupStats.lane, lane), eq(laneMatchupStats.patch, latestPatch)))
     .groupBy(laneMatchupStats.championId)
     .having(sql`sum(${laneMatchupStats.games}) >= ${MIN_GAMES_FOR_TIER_LIST}`)
     .limit(TIER_LIST_LIMIT);
@@ -148,7 +169,7 @@ ipcMain.handle("get-tier-list", async (_event: unknown, lane: string) => {
   });
   scored.sort((a, b) => b.score - a.score);
 
-  return scored;
+  return { patch: latestPatch, rows: scored };
 });
 
 // z=1.96 corresponde a un intervalo de confianza del 95%.

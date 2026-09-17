@@ -10,6 +10,7 @@ const profileSection = document.getElementById("profile");
 const summaryEl = document.getElementById("summary");
 const matchesEl = document.getElementById("matches");
 const laneTabs = document.getElementById("lane-tabs");
+const tierListPatchEl = document.getElementById("tier-list-patch");
 const tierListEl = document.getElementById("tier-list");
 const collectionStatsEl = document.getElementById("collection-stats");
 const queueBarFillEl = document.getElementById("queue-bar-fill");
@@ -150,8 +151,9 @@ laneTabs.addEventListener("click", async (event) => {
   // visible pero atenuada mientras carga la nueva.
   tierListEl.classList.add("loading");
   try {
-    const rows = await window.api.getTierList(button.dataset.lane);
+    const { patch, rows } = await window.api.getTierList(button.dataset.lane);
     await championsReady;
+    tierListPatchEl.textContent = patch ? `Parche ${patch}` : "";
     renderTierList(rows);
   } catch (err) {
     tierListEl.innerHTML = `<li>Error: ${err.message}</li>`;
