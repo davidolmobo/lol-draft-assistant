@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>lol-draft-assistant</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Perfil de jugador</h1>
+      <form id="search-form">
+        <input id="riot-id-input" type="text" placeholder="nombre#tag" required />
+        <button type="submit">Buscar</button>
+      </form>
+      <p id="status"></p>
+      <section id="profile" hidden>
+        <div id="summary"></div>
+        <h2>Últimas partidas</h2>
+        <ul id="matches"></ul>
+      </section>
+    </main>
+    <script src="renderer.js"></script>
+  </body>
+</html>

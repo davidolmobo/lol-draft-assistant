@@ -118,15 +118,20 @@ export function getRankedSoloMatchIds(puuid: string, count = 20) {
 export interface MatchParticipant {
   puuid: string;
   championId: number;
+  championName: string;
   teamId: number;
   teamPosition: "TOP" | "JUNGLE" | "MIDDLE" | "BOTTOM" | "UTILITY" | "";
   win: boolean;
+  kills: number;
+  deaths: number;
+  assists: number;
 }
 
 export interface MatchDto {
   metadata: { matchId: string };
   info: {
     gameVersion: string;
+    gameEndTimestamp: number;
     queueId: number;
     participants: MatchParticipant[];
   };
@@ -141,4 +146,45 @@ export function getMatchById(matchId: string) {
 export function toPatch(gameVersion: string): string {
   const [major, minor] = gameVersion.split(".");
   return `${major}.${minor}`;
+}
+
+// --- Perfil de jugador (para vincular una cuenta desde la app) ---
+
+export interface RiotAccount {
+  puuid: string;
+  gameName: string;
+  tagLine: string;
+}
+
+// El "Riot ID" (nombre#tag) es lo único que el usuario necesita escribir;
+// esto lo resuelve a un PUUID, la clave que usan el resto de endpoints.
+export function getAccountByRiotId(gameName: string, tagLine: string) {
+  return riotFetch<RiotAccount>(
+    `${REGIONAL_HOST}/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`,
+  );
+}
+
+export interface SummonerDto {
+  puuid: string;
+  profileIconId: number;
+  summonerLevel: number;
+}
+
+export function getSummonerByPuuid(puuid: string) {
+  return riotFetch<SummonerDto>(`${PLATFORM_HOST}/lol/summoner/v4/summoners/by-puuid/${puuid}`);
+}
+
+export interface LeagueEntryFull {
+  queueType: string;
+  tier: string;
+  rank: string;
+  leaguePoints: number;
+  wins: number;
+  losses: number;
+}
+
+// Devuelve un array (una entrada por cola: solo/duo, flex...). Si el
+// jugador no tiene partidas rankeadas en una cola, esa cola no aparece.
+export function getLeagueEntriesByPuuid(puuid: string) {
+  return riotFetch<LeagueEntryFull[]>(`${PLATFORM_HOST}/lol/league/v4/entries/by-puuid/${puuid}`);
 }

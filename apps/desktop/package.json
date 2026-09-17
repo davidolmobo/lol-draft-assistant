@@ -1,0 +1,17 @@
+{
+  "name": "@lol-draft-assistant/desktop",
+  "private": true,
+  "version": "0.0.0",
+  "main": "src/main.bootstrap.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "@lol-draft-assistant/shared": "*"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
