@@ -57,3 +57,70 @@ button {
 #matches li.loss {
   background: rgba(190, 70, 70, 0.2);
 }
+
+#collection-status {
+  font-size: 0.85em;
+  color: #cfcfcf;
+}
+
+#refresh-stats {
+  margin-top: 6px;
+  font-size: 0.85em;
+  padding: 4px 10px;
+}
+
+#queue-bar {
+  margin-top: 6px;
+  height: 6px;
+  background: #2a2d38;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+#queue-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: #3a6fd8;
+  transition: width 0.4s ease;
+}
+
+hr {
+  border-color: #2a2d38;
+  margin: 20px 0;
+}
+
+.hint {
+  color: #9a9a9a;
+  font-size: 0.85em;
+}
+
+#lane-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+#lane-tabs button.active {
+  background: #3a6fd8;
+  color: white;
+}
+
+#tier-list {
+  list-style: decimal;
+  padding-left: 24px;
+}
+
+#tier-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+#tier-list li img {
+  border-radius: 4px;
+}
+
+#tier-list.loading {
+  opacity: 0.4;
+}

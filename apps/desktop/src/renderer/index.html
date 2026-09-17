@@ -7,6 +7,14 @@
   </head>
   <body>
     <main>
+      <section id="collection-status">
+        <div id="collection-stats">Cargando estado de recolección...</div>
+        <div id="queue-bar"><div id="queue-bar-fill"></div></div>
+        <button type="button" id="refresh-stats">Actualizar</button>
+      </section>
+
+      <hr />
+
       <h1>Perfil de jugador</h1>
       <form id="search-form">
         <input id="riot-id-input" type="text" placeholder="nombre#tag" required />
@@ -17,6 +25,24 @@
         <div id="summary"></div>
         <h2>Últimas partidas</h2>
         <ul id="matches"></ul>
+      </section>
+
+      <hr />
+
+      <section id="tier-list-section">
+        <h1>Tier list (boceto)</h1>
+        <p class="hint">
+          Winrate general por campeón/lane, con muy pocos datos todavía —
+          mejora sola según el recolector siga corriendo.
+        </p>
+        <div id="lane-tabs">
+          <button type="button" data-lane="TOP">Top</button>
+          <button type="button" data-lane="JUNGLE">Jungla</button>
+          <button type="button" data-lane="MIDDLE">Mid</button>
+          <button type="button" data-lane="BOTTOM">ADC</button>
+          <button type="button" data-lane="UTILITY">Support</button>
+        </div>
+        <ol id="tier-list"></ol>
       </section>
     </main>
     <script src="renderer.js"></script>

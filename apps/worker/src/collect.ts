@@ -14,7 +14,14 @@ import { eq, isNull, asc, sql } from "drizzle-orm";
 // pasamos de su propio timeout; paramos antes por nuestra cuenta para que
 // el estado en la BD (crawl_queue / processed_matches) quede siempre
 // consistente en vez de cortado a mitad de una partida.
-const RUNTIME_BUDGET_MS = 4 * 60 * 1000;
+//
+// El límite real de velocidad es el rate limit de Riot (100 peticiones/2min),
+// no la frecuencia con la que arranca este script. Por eso interesa que
+// cada ejecución dure mucho (satura ese límite un buen rato) en vez de
+// lanzar muchas ejecuciones cortas: así hace falta que el cron de GitHub
+// acierte con mucha menos frecuencia, que es donde está el punto débil
+// real (ver .github/workflows/collect.yml).
+const RUNTIME_BUDGET_MS = 25 * 60 * 1000;
 const MATCHES_PER_PLAYER = 20;
 
 const deadline = Date.now() + RUNTIME_BUDGET_MS;

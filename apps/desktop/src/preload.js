@@ -7,4 +7,8 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("api", {
   getPlayerProfile: (riotId) => ipcRenderer.invoke("get-player-profile", riotId),
+  getSettings: () => ipcRenderer.invoke("get-settings"),
+  saveSettings: (settings) => ipcRenderer.invoke("save-settings", settings),
+  getTierList: (lane) => ipcRenderer.invoke("get-tier-list", lane),
+  getCollectionStats: () => ipcRenderer.invoke("get-collection-stats"),
 });
