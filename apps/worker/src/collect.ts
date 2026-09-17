@@ -8,7 +8,7 @@ import {
   toPatch,
   type MatchDto,
 } from "@lol-draft-assistant/shared";
-import { eq, isNull, asc, sql } from "drizzle-orm";
+import { eq, isNull, asc, inArray, sql } from "drizzle-orm";
 
 // Presupuesto de tiempo por ejecución. GitHub Actions mataría el job si nos
 // pasamos de su propio timeout; paramos antes por nuestra cuenta para que
@@ -65,59 +65,102 @@ async function processPlayer(puuid: string): Promise<number> {
     console.error(`Error obteniendo partidas de ${puuid}:`, (err as Error).message);
     return 0;
   }
+  if (matchIds.length === 0) return 0;
 
-  let processedCount = 0;
+  // Un solo viaje a la BD para saber cuáles de estas partidas ya
+  // conocíamos, en vez de una consulta por partida.
+  const existing = await db
+    .select({ matchId: processedMatches.matchId })
+    .from(processedMatches)
+    .where(inArray(processedMatches.matchId, matchIds));
+  const alreadyKnown = new Set(existing.map((row) => row.matchId));
+  const newMatchIds = matchIds.filter((id) => !alreadyKnown.has(id));
+  if (newMatchIds.length === 0) return 0;
 
-  for (const matchId of matchIds) {
+  const matches: MatchDto[] = [];
+  for (const matchId of newMatchIds) {
     if (timeLeft() <= 0) break;
-
-    const [existing] = await db
-      .select({ matchId: processedMatches.matchId })
-      .from(processedMatches)
-      .where(eq(processedMatches.matchId, matchId));
-    if (existing) continue;
-
-    let match: MatchDto;
     try {
-      match = await getMatchById(matchId);
+      matches.push(await getMatchById(matchId));
     } catch (err) {
       console.error(`Error obteniendo partida ${matchId}:`, (err as Error).message);
-      continue;
     }
-
-    await recordMatch(match);
-    await db.insert(processedMatches).values({ matchId }).onConflictDoNothing();
-
-    const newPuuids = match.info.participants.map((p) => ({ puuid: p.puuid }));
-    await db.insert(crawlQueue).values(newPuuids).onConflictDoNothing();
-
-    processedCount++;
   }
+  if (matches.length === 0) return 0;
 
-  return processedCount;
+  await saveMatches(matches);
+  return matches.length;
 }
 
-async function recordMatch(match: MatchDto) {
-  const patch = toPatch(match.info.gameVersion);
-  // Filtra participantes sin lane asignada (partidas raras, remakes, etc).
-  const participants = match.info.participants.filter((p) => p.teamPosition);
+interface MatchupTotal {
+  patch: string;
+  lane: "TOP" | "JUNGLE" | "MIDDLE" | "BOTTOM" | "UTILITY";
+  championId: number;
+  opponentChampionId: number;
+  games: number;
+  wins: number;
+}
 
-  for (const participant of participants) {
-    const opponent = participants.find(
-      (other) => other.teamId !== participant.teamId && other.teamPosition === participant.teamPosition,
-    );
-    if (!opponent) continue;
+// Antes esto escribía partida por partida (~13 consultas a la BD por
+// cada una). Ahora junta TODAS las partidas nuevas encontradas para este
+// jugador y las manda en un puñado fijo de consultas (4 en total, sin
+// importar si son 1 o 20 partidas), reduciendo mucho el tiempo perdido en
+// idas y vueltas de red hacia Neon.
+async function saveMatches(matches: MatchDto[]) {
+  // Varias partidas pueden aportar al mismo matchup (mismo campeón, lane,
+  // rival y parche): se suman en memoria antes de tocar la BD, para que
+  // el upsert final sea una sola fila por combinación, no una por partida.
+  const matchupTotals = new Map<string, MatchupTotal>();
+  const newPuuids = new Set<string>();
 
+  for (const match of matches) {
+    const patch = toPatch(match.info.gameVersion);
+    const participants = match.info.participants.filter((p) => p.teamPosition);
+
+    for (const participant of participants) {
+      newPuuids.add(participant.puuid);
+
+      const opponent = participants.find(
+        (other) => other.teamId !== participant.teamId && other.teamPosition === participant.teamPosition,
+      );
+      if (!opponent) continue;
+
+      const key = `${patch}|${participant.teamPosition}|${participant.championId}|${opponent.championId}`;
+      const totals = matchupTotals.get(key);
+      if (totals) {
+        totals.games += 1;
+        totals.wins += participant.win ? 1 : 0;
+      } else {
+        matchupTotals.set(key, {
+          patch,
+          lane: participant.teamPosition,
+          championId: participant.championId,
+          opponentChampionId: opponent.championId,
+          games: 1,
+          wins: participant.win ? 1 : 0,
+        });
+      }
+    }
+  }
+
+  await db
+    .insert(processedMatches)
+    .values(matches.map((m) => ({ matchId: m.metadata.matchId })))
+    .onConflictDoNothing();
+
+  await db
+    .insert(crawlQueue)
+    .values([...newPuuids].map((puuid) => ({ puuid })))
+    .onConflictDoNothing();
+
+  const matchupRows = [...matchupTotals.values()];
+  if (matchupRows.length > 0) {
+    // "excluded" es la fila que se intentó insertar (la de este lote); al
+    // ser un solo INSERT con varias filas, cada conflicto suma su propio
+    // valor a lo que ya hubiera en la tabla.
     await db
       .insert(laneMatchupStats)
-      .values({
-        patch,
-        lane: participant.teamPosition,
-        championId: participant.championId,
-        opponentChampionId: opponent.championId,
-        games: 1,
-        wins: participant.win ? 1 : 0,
-      })
+      .values(matchupRows)
       .onConflictDoUpdate({
         target: [
           laneMatchupStats.patch,
@@ -126,8 +169,8 @@ async function recordMatch(match: MatchDto) {
           laneMatchupStats.opponentChampionId,
         ],
         set: {
-          games: sql`${laneMatchupStats.games} + 1`,
-          wins: sql`${laneMatchupStats.wins} + ${participant.win ? 1 : 0}`,
+          games: sql`${laneMatchupStats.games} + excluded.games`,
+          wins: sql`${laneMatchupStats.wins} + excluded.wins`,
           updatedAt: new Date(),
         },
       });
