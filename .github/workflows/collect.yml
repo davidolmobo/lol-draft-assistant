@@ -20,10 +20,18 @@ concurrency:
   group: collect-match-data
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -39,3 +47,16 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
         run: npm run collect
+
+      - name: Generar página de estado
+        working-directory: apps/worker
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run status-page
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/worker/status-dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

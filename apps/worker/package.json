@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "seed": "tsx src/seed.ts",
-    "collect": "tsx src/collect.ts"
+    "collect": "tsx src/collect.ts",
+    "status-page": "tsx src/generate-status-page.ts"
   },
   "dependencies": {
     "@lol-draft-assistant/shared": "*",
