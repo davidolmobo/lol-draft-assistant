@@ -126,18 +126,40 @@ ipcMain.handle("get-tier-list", async (_event: unknown, lane: string) => {
     .where(eq(laneMatchupStats.lane, lane))
     .groupBy(laneMatchupStats.championId)
     .having(sql`sum(${laneMatchupStats.games}) >= ${MIN_GAMES_FOR_TIER_LIST}`)
-    .orderBy(
-      sql`sum(${laneMatchupStats.wins})::float / nullif(sum(${laneMatchupStats.games}), 0) desc`,
-    )
     .limit(TIER_LIST_LIMIT);
 
-  return rows.map((row) => ({
-    championId: row.championId,
-    games: Number(row.games),
-    wins: Number(row.wins),
-    winRate: Number(row.wins) / Number(row.games),
-  }));
+  // Ordenar por winrate puro castiga a los campeones con muchas partidas:
+  // uno con 55% en 500 partidas es un dato mucho más fiable que uno con
+  // 100% en 3, pero un sort ingenuo pondría el segundo primero. El límite
+  // inferior de Wilson (mismo truco que usa Reddit para ordenar
+  // comentarios) "desconfía" de las muestras pequeñas y las empuja hacia
+  // abajo hasta que hay suficientes partidas para confiar en el número —
+  // así se parece más a cómo ordena OP.GG.
+  const scored = rows.map((row) => {
+    const games = Number(row.games);
+    const wins = Number(row.wins);
+    return {
+      championId: row.championId,
+      games,
+      wins,
+      winRate: wins / games,
+      score: wilsonLowerBound(wins, games),
+    };
+  });
+  scored.sort((a, b) => b.score - a.score);
+
+  return scored;
 });
+
+// z=1.96 corresponde a un intervalo de confianza del 95%.
+function wilsonLowerBound(wins: number, games: number, z = 1.96): number {
+  if (games === 0) return 0;
+  const p = wins / games;
+  const denominator = 1 + (z * z) / games;
+  const centre = p + (z * z) / (2 * games);
+  const margin = z * Math.sqrt((p * (1 - p)) / games + (z * z) / (4 * games * games));
+  return (centre - margin) / denominator;
+}
 
 // Panel de estado: para ver de un vistazo si el recolector (el cron de
 // GitHub Actions) sigue metiendo partidas nuevas, sin tener que consultar
